@@ -1,0 +1,9 @@
+.idea
+.vscode
+
+vendor
+
+*.tmp
+*.gzip
+
+testdata/
