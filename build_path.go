@@ -1,4 +1,4 @@
-package restfulspec
+package restspec
 
 import (
 	"net/http"
@@ -112,6 +112,9 @@ func buildOperation(ws *restful.WebService, r restful.Route, patterns map[string
 		}
 	}
 
+	if o.Extensions == nil {
+		o.Extensions = map[string]interface{}{}
+	}
 	extractExtensions(&o.Extensions, r.ExtensionProperties)
 
 	// collect any path parameters
@@ -147,7 +150,7 @@ func buildOperation(ws *restful.WebService, r restful.Route, patterns map[string
 	}
 	if r.DefaultResponse != nil {
 		rsp := buildResponse(*r.DefaultResponse, cfg, r.Produces)
-		o.AddResponse(200, &rsp)
+		o.AddResponse(-1, &rsp)
 	}
 	if o.Responses.Len() == 0 {
 		o.AddResponse(200, (&spec.Response{}).WithDescription(http.StatusText(http.StatusOK)))
@@ -181,6 +184,10 @@ func extractExtensions(extensible *map[string]interface{}, extensions restful.Ex
 	if len(extensions.Extensions) > 0 {
 		for key := range extensions.Extensions {
 			if strings.HasPrefix(key, ExtensionPrefix) {
+				if *extensible == nil {
+					m := map[string]interface{}{}
+					extensible = &m
+				}
 				(*extensible)[key] = extensions.Extensions[key]
 			}
 		}
@@ -201,14 +208,20 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 		p.Schema.Value.Type = &spec.Types{arrayType}
 		p.Schema.Value.Items = &spec.SchemaRef{
 			Value: &spec.Schema{
-				Type:      &spec.Types{param.DataType},
-				Pattern:   param.Pattern,
-				MinLength: uint64(*param.MinLength),
+				Type:    &spec.Types{param.DataType},
+				Pattern: param.Pattern,
 			},
 		}
+		if param.MaxLength != nil {
+			p.Schema.Value.Items.Value.MinLength = uint64(*param.MinLength)
+		}
 		//p.Schema.Value. = param.CollectionFormat
-		p.Schema.Value.MinItems = uint64(*param.MinItems)
-		p.Schema.Value.MaxItems = spec.Uint64Ptr(uint64(*param.MaxItems))
+		if param.MinItems != nil {
+			p.Schema.Value.MinItems = uint64(*param.MinItems)
+		}
+		if param.MaxItems != nil {
+			p.Schema.Value.MaxItems = spec.Uint64Ptr(uint64(*param.MaxItems))
+		}
 		p.Schema.Value.UniqueItems = param.UniqueItems
 	} else {
 		// Otherwise, for non-arrays, apply the validations directly to the param
@@ -261,7 +274,7 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 	}
 	st := reflect.TypeOf(r.ReadSample)
 	if param.Kind == restful.BodyParameterKind && r.ReadSample != nil && param.DataType == st.String() {
-		p.Schema = new(spec.SchemaRef)
+		p.Schema = &spec.SchemaRef{Value: spec.NewSchema()}
 		if st.Kind() == reflect.Array || st.Kind() == reflect.Slice {
 			dataTypeName := keyFrom(st.Elem(), cfg)
 			p.Schema.Value.Type = &spec.Types{arrayType}
@@ -281,6 +294,7 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 		} else {
 			dataTypeName := keyFrom(st, cfg)
 			p.Schema.Ref = componentRoot + dataTypeName
+			p.Schema.Value = spec.NewSchema()
 		}
 
 	} else {
@@ -296,6 +310,9 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 		p.Schema.Value.Format = param.DataFormat
 	}
 
+	if p.Extensions == nil {
+		p.Extensions = map[string]interface{}{}
+	}
 	extractExtensions(&p.Extensions, param.ExtensionProperties)
 
 	return p
@@ -327,6 +344,9 @@ func buildResponse(e restful.ResponseError, cfg Config, products []string) (r sp
 			}
 		} else {
 			modelName := keyFrom(st, cfg)
+			if schema.Value.Type == nil {
+				schema.Value.Type = &spec.Types{}
+			}
 			if isPrimitiveType(modelName) {
 				// If the response is a primitive type, then don't reference any definitions.
 				// Instead, set the schema's "type" to the model name.
@@ -357,6 +377,9 @@ func buildResponse(e restful.ResponseError, cfg Config, products []string) (r sp
 		}
 	}
 
+	if r.Extensions == nil {
+		r.Extensions = map[string]interface{}{}
+	}
 	extractExtensions(&r.Extensions, e.ExtensionProperties)
 	return r
 }

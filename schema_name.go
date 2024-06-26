@@ -1,4 +1,4 @@
-package restfulspec
+package restspec
 
 import "strings"
 

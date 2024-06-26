@@ -1,4 +1,4 @@
-package restfulspec
+package restspec
 
 import (
 	"reflect"
@@ -302,6 +302,7 @@ func (b *schemaBuilder) buildStructTypeProperty(field reflect.StructField, jsonN
 }
 
 func (b *schemaBuilder) buildArrayTypeProperty(field reflect.StructField, jsonName, modelName string) (nameJson string, prop spec.SchemaRef) {
+	prop.Value = &spec.Schema{}
 	setPropertyMetadata(prop.Value, field)
 	fieldType := field.Type
 	if fieldType.Elem().Kind() == reflect.Uint8 {
@@ -382,16 +383,17 @@ func (b *schemaBuilder) buildMapType(mapType reflect.Type, jsonName, modelName s
 			prop.Value.AdditionalProperties.Schema.Value.Type = &spec.Types{"string"}
 		} else {
 			if isSlice {
-				var item *spec.Schema
+				item := &spec.SchemaRef{Value: spec.NewSchema()}
 				if isPrimitive {
 					mapped := b.jsonSchemaType(elemTypeName, mapType.Kind())
-					item = &spec.Schema{}
-					item.Type = &spec.Types{mapped}
-					item.Format = b.jsonSchemaFormat(elemTypeName, mapType.Kind())
+					item.Value.Type = &spec.Types{mapped}
+					item.Value.Format = b.jsonSchemaFormat(elemTypeName, mapType.Kind())
 				} else {
-					prop.Ref = componentRoot + elemTypeName
+					item.Ref = componentRoot + elemTypeName
 				}
-				prop.Value.AdditionalProperties.Schema.Value = spec.NewArraySchema().WithItems(item)
+				array := spec.NewArraySchema()
+				array.Items = item
+				prop.Value.AdditionalProperties.Schema.Value = array
 			} else if isPrimitive {
 				mapped := b.jsonSchemaType(elemTypeName, mapType.Elem().Kind())
 				prop.Value.AdditionalProperties.Schema.Value.Type = &spec.Types{mapped}

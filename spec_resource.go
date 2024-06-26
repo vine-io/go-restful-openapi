@@ -1,4 +1,4 @@
-package restfulspec
+package restspec
 
 import (
 	"github.com/emicklei/go-restful/v3"
@@ -23,7 +23,7 @@ func NewOpenAPIService(config Config) *restful.WebService {
 }
 
 // BuildOpenAPIV3 returns a openapi object for all services' API endpoints.
-func BuildOpenAPIV3(config Config) *spec.T {
+func BuildOpenAPIV3(config Config) *OpenAPI {
 	// collect paths and model definitions to build Swagger object.
 	paths := &spec.Paths{}
 	components := &spec.Components{
@@ -44,29 +44,17 @@ func BuildOpenAPIV3(config Config) *spec.T {
 		}
 		components.Schemas = buildSchemas(each, config)
 	}
-	openapi := &spec.T{
-		Extensions: nil,
+	openapi := &OpenAPI{
 		OpenAPI:    "3.0.1",
 		Components: components,
-		Info: &spec.Info{
-			Extensions:     nil,
-			Title:          "",
-			Description:    "",
-			TermsOfService: "",
-			Contact:        nil,
-			License:        nil,
-			Version:        "",
-		},
-		Paths:    paths,
-		Security: nil,
+		Info:       &spec.Info{},
+		Paths:      paths,
+		Security:   []spec.SecurityRequirement{},
 		Servers: spec.Servers{{
-			Extensions:  nil,
-			URL:         config.Host,
-			Description: "",
-			Variables:   nil,
+			URL: config.Host,
 		}},
-		Tags:         nil,
-		ExternalDocs: nil,
+		Tags:         []*spec.Tag{},
+		ExternalDocs: &spec.ExternalDocs{},
 	}
 	if config.PostBuildOpenAPIObjectHandler != nil {
 		config.PostBuildOpenAPIObjectHandler(openapi)
@@ -86,7 +74,7 @@ func enableCORS(req *restful.Request, resp *restful.Response, chain *restful.Fil
 
 // specResource is a REST resource to serve the Open-API spec.
 type specResource struct {
-	openapi *spec.T
+	openapi *OpenAPI
 }
 
 func (s specResource) getOpenAPI(req *restful.Request, resp *restful.Response) {

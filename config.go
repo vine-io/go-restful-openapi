@@ -1,4 +1,4 @@
-package restfulspec
+package restspec
 
 import (
 	"reflect"
@@ -6,6 +6,8 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	spec "github.com/getkin/kin-openapi/openapi3"
 )
+
+type OpenAPI spec.T
 
 // MapSchemaFormatFunc can be used to modify typeName at definition time.
 // To use it set the SchemaFormatHandler in the config.
@@ -18,14 +20,14 @@ type MapModelTypeNameFunc func(t reflect.Type) (string, bool)
 
 // PostBuildOpenAPIObjectFunc can be used to change the creates OpenAPI Object
 // before serving it. To use it set the PostBuildOpenAPIObjectHandler in the config.
-type PostBuildOpenAPIObjectFunc func(s *spec.T)
+type PostBuildOpenAPIObjectFunc func(s *OpenAPI)
 
 // ComponentNameHandlerFunc generate name by this handler for definition without json tag.
 // example: (for more, see file definition_name_test.go)
 //
-//		  field	      			 definition_name
-//		  Name `json:"name"`  ->  name
-//	   Name                ->  Name
+//		field	      			definition_name
+//		Name `json:"name"`  ->  name
+//	   	Name                ->  Name
 //
 // there are some example provided for use
 //

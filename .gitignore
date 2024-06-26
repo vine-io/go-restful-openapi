@@ -6,4 +6,4 @@ vendor
 *.tmp
 *.gzip
 
-testdata/
+example/

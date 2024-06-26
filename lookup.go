@@ -1,4 +1,4 @@
-package restfulspec
+package restspec
 
 import "github.com/emicklei/go-restful/v3"
 
