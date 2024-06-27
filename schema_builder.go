@@ -7,6 +7,12 @@ import (
 	spec "github.com/getkin/kin-openapi/openapi3"
 )
 
+// Extension Parameters
+const (
+	ExGoType       = "x-go-type"
+	ExGoTypeImport = "x-go-type-import"
+)
+
 type schemaBuilder struct {
 	Schemas *spec.Schemas
 	Config  Config
@@ -46,6 +52,7 @@ func (b *schemaBuilder) addModel(st reflect.Type, nameOverride string) *spec.Sch
 		st = st.Elem()
 	}
 
+	stName := st.String()
 	modelName := keyFrom(st, b.Config)
 	if nameOverride != "" {
 		modelName = nameOverride
@@ -71,7 +78,16 @@ func (b *schemaBuilder) addModel(st reflect.Type, nameOverride string) *spec.Sch
 		Value: &spec.Schema{
 			Required:   []string{},
 			Properties: map[string]*spec.SchemaRef{},
+			Extensions: map[string]interface{}{},
 		},
+	}
+
+	alias, _, _ := strings.Cut(stName, ".")
+	if alias != "" && alias != "restspec" {
+		sm.Value.Extensions[ExGoType] = stName
+		sm.Value.Extensions[ExGoTypeImport] = map[string]string{
+			"path": st.PkgPath(),
+		}
 	}
 
 	// reference the model before further initializing (enables recursive structs)

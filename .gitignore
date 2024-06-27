@@ -6,4 +6,5 @@ vendor
 *.tmp
 *.gzip
 
-example/
+generate/
+testdata/
