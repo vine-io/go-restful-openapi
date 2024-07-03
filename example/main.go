@@ -35,13 +35,16 @@ func (u UserResource) WebService() *rest.WebService {
 		Doc("get all users").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.QueryParameter("gender", "identifier of the user").DataType("string")).
+		Param(ws.HeaderParameter("token", "user token").DataType("string")).
 		Returns(200, "OK", []apis.User{}))
 
 	ws.Route(ws.GET("/{id}").To(u.findUser).
 		// docs
+		Operation("User.List").
 		Doc("get a user").
 		Param(ws.PathParameter("id", "identifier of the user").DataType("integer").DefaultValue("1")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(restfulspec.KeySecurityJWT, "bearerAuth").
 		Writes(apis.User{}). // on the response
 		Returns(200, "OK", apis.User{}).
 		Returns(404, "Not Found", nil))
@@ -140,7 +143,7 @@ func main() {
 	// Optionally, you can install the Swagger Service which provides a nice Web UI on your REST API
 	// You need to download the Swagger HTML5 assets and change the FilePath location in the config below.
 	// Open http://localhost:8080/apidocs/?url=http://localhost:8080/apidocs.json
-	root.Handle("/apidocs/", http.StripPrefix("/apidocs/", http.FileServer(http.Dir("swagger"))))
+	root.Handle("/apidocs/", http.StripPrefix("/apidocs/", http.FileServer(http.Dir("../testdata/swagger"))))
 
 	// Optionally, you may need to enable CORS for the UI to work.
 	cors := rest.CrossOriginResourceSharing{
@@ -175,6 +178,16 @@ func enrichOpenAPIObject(swo *restfulspec.OpenAPI) {
 		{
 			Name:        "users",
 			Description: "Managing users",
+		},
+	}
+
+	swo.Components.SecuritySchemes = spec.SecuritySchemes{
+		"bearerAuth": &spec.SecuritySchemeRef{
+			Value: &spec.SecurityScheme{
+				Type:         "http",
+				Scheme:       "bearer",
+				BearerFormat: "JWT",
+			},
 		},
 	}
 }

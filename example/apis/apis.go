@@ -22,8 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package apis
 
 // User is just a sample type
-
-// aas
 type User struct {
 	// hello
 	ID   string `json:"id" description:"identifier of the user"`
@@ -32,8 +30,6 @@ type User struct {
 }
 
 // Role is just a sample role type
-
-// aax
 type Role struct {
 	Name string `json:"name" description:"name of the role"`
 }

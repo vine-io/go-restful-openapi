@@ -16,6 +16,8 @@ const (
 	// KeyOpenAPITags is a Metadata key for a restful Route
 	KeyOpenAPITags = "openapi.tags"
 
+	KeySecurityJWT = "security.jwt"
+
 	// ExtensionPrefix is the only prefix accepted for VendorExtensible extension keys
 	ExtensionPrefix = "x-"
 
@@ -101,13 +103,18 @@ func buildOperation(ws *restful.WebService, r restful.Route, patterns map[string
 	o.OperationID = r.Operation
 	o.Description = r.Notes
 	o.Summary = stripTags(r.Doc)
-	//o.Consumes = r.Consumes
-	//o.Produces = r.Produces
 	o.Deprecated = r.Deprecated
 	if r.Metadata != nil {
 		if tags, ok := r.Metadata[KeyOpenAPITags]; ok {
 			if tagList, ok := tags.([]string); ok {
 				o.Tags = tagList
+			}
+		}
+		if tags, ok := r.Metadata[KeySecurityJWT]; ok {
+			if security, ok := tags.(string); ok {
+				o.Security = &spec.SecurityRequirements{{
+					security: []string{},
+				}}
 			}
 		}
 	}
@@ -215,7 +222,7 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 		if param.MaxLength != nil {
 			p.Schema.Value.Items.Value.MinLength = uint64(*param.MinLength)
 		}
-		//p.Schema.Value. = param.CollectionFormat
+		p.Schema.Value.Format = param.CollectionFormat
 		if param.MinItems != nil {
 			p.Schema.Value.MinItems = uint64(*param.MinItems)
 		}
@@ -302,7 +309,7 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 			p.Schema.Value.Type = &spec.Types{arrayType}
 			p.Schema.Value.Items = &spec.SchemaRef{Value: &spec.Schema{}}
 			p.Schema.Value.Items.Value.Type = &spec.Types{param.DataType}
-			//p.CollectionFormat = param.CollectionFormat
+			p.Schema.Value.Items.Value.Format = param.CollectionFormat
 		} else {
 			p.Schema.Value.Type = &spec.Types{param.DataType}
 		}
@@ -325,7 +332,7 @@ func buildResponse(e restful.ResponseError, cfg Config, products []string) (r sp
 		st := reflect.TypeOf(e.Model)
 		if st.Kind() == reflect.Ptr {
 			// For pointer type, use element type as the key; otherwise we'll
-			// endup with '#/definitions/*Type' which violates openapi spec.
+			// endue with '#/components/schemas/*Type' which violates openapi spec.
 			st = st.Elem()
 		}
 		schema := &spec.SchemaRef{Value: &spec.Schema{}}
@@ -355,7 +362,7 @@ func buildResponse(e restful.ResponseError, cfg Config, products []string) (r sp
 				*schema.Value.Type = append(*(schema.Value.Type), schemaType.RawType)
 				schema.Value.Format = schemaType.Format
 			} else {
-				modelName := keyFrom(st, cfg)
+				modelName = keyFrom(st, cfg)
 				schema.Ref = componentRoot + modelName
 			}
 		}
@@ -402,7 +409,7 @@ func buildHeader(header restful.Header) spec.HeaderRef {
 
 	// If type is "array" items field is required
 	if header.Type == arrayType {
-		//responseHeader.CollectionFormat = header.CollectionFormat
+		responseHeader.Value.Schema.Value.Format = header.CollectionFormat
 		responseHeader.Value.Schema.Value.Items = buildHeadersItems(header.Items)
 	}
 
@@ -415,7 +422,7 @@ func buildHeadersItems(items *restful.Items) *spec.SchemaRef {
 	responseItems.Value.Format = items.Format
 	responseItems.Value.Type = &spec.Types{arrayType}
 	responseItems.Value.Default = items.Default
-	//responseItems.CollectionFormat = items.CollectionFormat
+	responseItems.Value.Format = items.CollectionFormat
 	if items.Items != nil {
 		responseItems.Value.Items = buildHeadersItems(items.Items)
 	}
