@@ -15,7 +15,25 @@ import (
 )
 
 func init() {
-	integration.UseMux("path", integration.Vars)
+	integration.UseHttpin("path", integration.Vars)
+}
+
+func bodyLogFilter(req *rest.Request, resp *rest.Response, chain *rest.FilterChain) {
+
+	//inBody, err := io.ReadAll(req.Request.Body)
+	//if err != nil {
+	//	resp.WriteError(400, err)
+	//	return
+	//}
+	//req.Request.Body = ioutil.NopCloser(bytes.NewReader(inBody))
+
+	//c := NewResponseCapture(resp.ResponseWriter)
+	//resp.ResponseWriter = c
+
+	chain.ProcessFilter(req, resp)
+
+	//log.Println("Request body:", string(inBody))
+	//log.Println("Response body:", string(c.Bytes()))
 }
 
 // rest
@@ -37,28 +55,28 @@ func (u UserResource) WebService() *rest.WebService {
 	})
 	tags := []string{"users"}
 
-	//ws.Route(ws.GET("/").To(u.findAllUsers).
-	//	// docs
-	//	Doc("get all users").
-	//	Metadata(restfulspec.KeyOpenAPITags, tags).
-	//	Param(ws.QueryParameter("gender", "identifier of the user").DataType("string")).
-	//	Param(ws.HeaderParameter("token", "user token").DataType("string")).
-	//	Returns(200, "OK", []apis.User{}))
-	//
-	//ws.Route(ws.GET("/{id}").To(u.findUser).
-	//	// docs
-	//	Operation("User.List").
-	//	Doc("get a user").
-	//	Param(ws.PathParameter("id", "identifier of the user").DataType("integer").DefaultValue("1")).
-	//	Metadata(restfulspec.KeyOpenAPITags, tags).
-	//	Metadata(restfulspec.KeySecurityJWT, "bearerAuth").
-	//	Writes(apis.User{}). // on the response
-	//	Returns(200, "OK", apis.User{}).
-	//	Returns(404, "Not Found", nil))
+	ws.Route(ws.GET("/").To(u.findAllUsers).
+		// docs
+		Doc("get all users").
+		Metadata(restspec.KeyOpenAPITags, tags).
+		Param(ws.QueryParameter("gender", "identifier of the user").DataType("string")).
+		Param(ws.HeaderParameter("token", "user token").DataType("string")).
+		Returns(200, "OK", []apis.User{}))
 
-	ws.Route(ws.PATCH("/{id}").Filter(
-		integration.HttpinHandlerToFilter(httpin.NewInput(apis.UpdateUserInput{})),
-	).To(u.updateUser).
+	ws.Route(ws.GET("/{id}").To(u.findUser).
+		// docs
+		Operation("User.List").
+		Doc("get a user").
+		Param(ws.PathParameter("id", "identifier of the user").DataType("integer").DefaultValue("1")).
+		Metadata(restspec.KeyOpenAPITags, tags).
+		Metadata(restspec.KeySecurityJWT, "bearerAuth").
+		Writes(apis.User{}). // on the response
+		Returns(200, "OK", apis.User{}).
+		Returns(404, "Not Found", nil))
+
+	ws.Route(ws.PATCH("/{id}").
+		Filter(integration.HttpinFilter(apis.UpdateUserInput{})).
+		To(u.updateUser).
 		// docs
 		Doc("update a user").
 		//Param(ws.PathParameter("id", "identifier of the user").DataType("string")).
@@ -75,11 +93,11 @@ func (u UserResource) WebService() *rest.WebService {
 		Reads(apis.User{}).
 		Returns(200, "OK", apis.User{})) // from the request
 
-	//ws.Route(ws.DELETE("/{id}").To(u.removeUser).
-	//	// docs
-	//	Doc("delete a user").
-	//	Metadata(restfulspec.KeyOpenAPITags, tags).
-	//	Param(ws.PathParameter("id", "identifier of the user").DataType("string")))
+	ws.Route(ws.DELETE("/{id}").To(u.removeUser).
+		// docs
+		Doc("delete a user").
+		Metadata(restspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("id", "identifier of the user").DataType("string")))
 
 	return ws
 }
@@ -166,7 +184,8 @@ func main() {
 		AllowedHeaders: []string{"Content-Type", "Accept"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
 		CookiesAllowed: false,
-		Container:      root}
+		Container:      root,
+	}
 	root.Filter(cors.Filter)
 
 	log.Printf("Get the API using http://localhost:8081/apidocs.json")

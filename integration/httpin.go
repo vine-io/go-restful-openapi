@@ -6,13 +6,13 @@ import (
 	"net/http"
 
 	rest "github.com/emicklei/go-restful/v3"
+	"github.com/ggicci/httpin"
 	"github.com/ggicci/httpin/core"
 )
 
-type HttpinHandler func(http.Handler) http.Handler
-
-// HttpinHandlerToFilter converts a HttpinHandler to a FilterFunction.
-func HttpinHandlerToFilter(middleware HttpinHandler) rest.FilterFunction {
+// HttpinFilter converts to a FilterFunction.
+func HttpinFilter(input any, opts ...core.Option) rest.FilterFunction {
+	handler := httpin.NewInput(input, opts...)
 	return func(req *rest.Request, resp *rest.Response, chain *rest.FilterChain) {
 		req.Request = setURLVars(req.Request, req.PathParameters())
 		next := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -21,7 +21,7 @@ func HttpinHandlerToFilter(middleware HttpinHandler) rest.FilterFunction {
 			chain.ProcessFilter(req, resp)
 		})
 
-		middleware(next).ServeHTTP(resp.ResponseWriter, req.Request)
+		handler(next).ServeHTTP(resp.ResponseWriter, req.Request)
 	}
 }
 
@@ -54,7 +54,7 @@ func requestWithVars(r *http.Request, vars map[string]string) *http.Request {
 // MuxVarsFunc is integration.Vars
 type MuxVarsFunc func(*http.Request) map[string]string
 
-// UseMux registers a new directive executor which can extract values
+// UseHttpin registers a new directive executor which can extract values
 // from `integration.Vars`, i.e. path variables.
 //
 // Usage:
@@ -62,25 +62,25 @@ type MuxVarsFunc func(*http.Request) map[string]string
 //	import integration "github.com/vine-io/go-restful-openapi/integration"
 //
 //	func init() {
-//	    integration.UseMux("path", integration.Vars)
+//	    integration.UseHttpin("path", integration.Vars)
 //	}
-func UseMux(name string, fnVars MuxVarsFunc) {
+func UseHttpin(name string, fnVars MuxVarsFunc) {
 	core.RegisterDirective(
 		name,
-		core.NewDirectivePath((&gorillaMuxVarsExtractor{Vars: fnVars}).Execute),
+		core.NewDirectivePath((&httpinVarsExtractor{Vars: fnVars}).Execute),
 		true,
 	)
 }
 
-type gorillaMuxVarsExtractor struct {
+type httpinVarsExtractor struct {
 	Vars MuxVarsFunc
 }
 
-func (mux *gorillaMuxVarsExtractor) Execute(rtm *core.DirectiveRuntime) error {
+func (h *httpinVarsExtractor) Execute(rtm *core.DirectiveRuntime) error {
 	req := rtm.GetRequest()
 	kvs := make(map[string][]string)
 
-	for key, value := range mux.Vars(req) {
+	for key, value := range h.Vars(req) {
 		kvs[key] = []string{value}
 	}
 
