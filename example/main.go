@@ -1,15 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
 	rest "github.com/emicklei/go-restful/v3"
 	spec "github.com/getkin/kin-openapi/openapi3"
+	"github.com/ggicci/httpin"
 
-	restfulspec "github.com/vine-io/go-restful-openapi"
+	restspec "github.com/vine-io/go-restful-openapi"
 	"github.com/vine-io/go-restful-openapi/example/apis"
+	"github.com/vine-io/go-restful-openapi/integration"
 )
+
+func init() {
+	integration.UseMux("path", integration.Vars)
+}
 
 // rest
 
@@ -30,43 +37,49 @@ func (u UserResource) WebService() *rest.WebService {
 	})
 	tags := []string{"users"}
 
-	ws.Route(ws.GET("/").To(u.findAllUsers).
-		// docs
-		Doc("get all users").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.QueryParameter("gender", "identifier of the user").DataType("string")).
-		Param(ws.HeaderParameter("token", "user token").DataType("string")).
-		Returns(200, "OK", []apis.User{}))
+	//ws.Route(ws.GET("/").To(u.findAllUsers).
+	//	// docs
+	//	Doc("get all users").
+	//	Metadata(restfulspec.KeyOpenAPITags, tags).
+	//	Param(ws.QueryParameter("gender", "identifier of the user").DataType("string")).
+	//	Param(ws.HeaderParameter("token", "user token").DataType("string")).
+	//	Returns(200, "OK", []apis.User{}))
+	//
+	//ws.Route(ws.GET("/{id}").To(u.findUser).
+	//	// docs
+	//	Operation("User.List").
+	//	Doc("get a user").
+	//	Param(ws.PathParameter("id", "identifier of the user").DataType("integer").DefaultValue("1")).
+	//	Metadata(restfulspec.KeyOpenAPITags, tags).
+	//	Metadata(restfulspec.KeySecurityJWT, "bearerAuth").
+	//	Writes(apis.User{}). // on the response
+	//	Returns(200, "OK", apis.User{}).
+	//	Returns(404, "Not Found", nil))
 
-	ws.Route(ws.GET("/{id}").To(u.findUser).
-		// docs
-		Operation("User.List").
-		Doc("get a user").
-		Param(ws.PathParameter("id", "identifier of the user").DataType("integer").DefaultValue("1")).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Metadata(restfulspec.KeySecurityJWT, "bearerAuth").
-		Writes(apis.User{}). // on the response
-		Returns(200, "OK", apis.User{}).
-		Returns(404, "Not Found", nil))
-
-	ws.Route(ws.PUT("/{id}").To(u.updateUser).
+	ws.Route(ws.PATCH("/{id}").Filter(
+		integration.HttpinHandlerToFilter(httpin.NewInput(apis.UpdateUserInput{})),
+	).To(u.updateUser).
 		// docs
 		Doc("update a user").
-		Param(ws.PathParameter("id", "identifier of the user").DataType("string")).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Reads(apis.User{})) // from the request
+		//Param(ws.PathParameter("id", "identifier of the user").DataType("string")).
+		Metadata(restspec.KeyOpenAPITags, tags).
+		//Reads(apis.UserPatch{}),
+		Do(restspec.ReadSample(apis.UpdateUserInput{})),
+	)
+	//Reads(apis.UpdateUserInput{})) // from the request
 
-	ws.Route(ws.PUT("").To(u.createUser).
+	ws.Route(ws.POST("").To(u.createUser).
 		// docs
 		Doc("create a user").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Reads(apis.User{})) // from the request
+		Metadata(restspec.KeyOpenAPITags, tags).
+		Reads(apis.User{}).
+		Returns(200, "OK", apis.User{})) // from the request
 
-	ws.Route(ws.DELETE("/{id}").To(u.removeUser).
-		// docs
-		Doc("delete a user").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.PathParameter("id", "identifier of the user").DataType("string")))
+	//ws.Route(ws.DELETE("/{id}").To(u.removeUser).
+	//	// docs
+	//	Doc("delete a user").
+	//	Metadata(restfulspec.KeyOpenAPITags, tags).
+	//	Param(ws.PathParameter("id", "identifier of the user").DataType("string")))
 
 	return ws
 }
@@ -94,6 +107,9 @@ func (u UserResource) findUser(request *rest.Request, response *rest.Response) {
 
 // PUT http://localhost:8080/users/1
 func (u *UserResource) updateUser(request *rest.Request, response *rest.Response) {
+	input := request.Request.Context().Value(httpin.Input).(*apis.UpdateUserInput)
+	fmt.Printf("%#v\n", input)
+
 	usr := new(apis.User)
 	err := request.ReadEntity(&usr)
 	if err == nil {
@@ -127,7 +143,7 @@ func main() {
 	u := UserResource{map[string]apis.User{}}
 	root.Add(u.WebService())
 
-	config := restfulspec.Config{
+	config := restspec.Config{
 		WebServices:                   root.RegisteredWebServices(), // you control what services are visible
 		APIPath:                       "/openapi.json",
 		PostBuildOpenAPIObjectHandler: enrichOpenAPIObject,
@@ -138,7 +154,7 @@ func main() {
 		//},
 		Host: "http://localhost:8081",
 	}
-	root.Add(restfulspec.NewOpenAPIService(config))
+	root.Add(restspec.NewOpenAPIService(config))
 
 	// Optionally, you can install the Swagger Service which provides a nice Web UI on your REST API
 	// You need to download the Swagger HTML5 assets and change the FilePath location in the config below.
@@ -158,7 +174,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8081", root))
 }
 
-func enrichOpenAPIObject(swo *restfulspec.OpenAPI) {
+func enrichOpenAPIObject(swo *restspec.OpenAPI) {
 
 	swo.Info = &spec.Info{
 		Title:       "UserService",

@@ -33,3 +33,15 @@ type User struct {
 type Role struct {
 	Name string `json:"name" description:"name of the role"`
 }
+
+type UserPatch struct {
+	Display string `json:"display"`
+	Email   string `json:"email"`
+	IsAdmin bool   `json:"is_admin"`
+}
+
+type UpdateUserInput struct {
+	ID      string    `in:"path=id"`
+	UID     string    `in:"query=uid"`
+	Payload UserPatch `in:"body=json"`
+}
