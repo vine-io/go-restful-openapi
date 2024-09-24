@@ -35,6 +35,7 @@ func ReadSample(sample any) func(b *restful.RouteBuilder) {
 
 			in := inMap(strings.Trim(tag, `"`))
 			desc := in["description"]
+			defaultValue := in["default"]
 			if _, ok := in["body"]; ok {
 				ft := field.Type
 				if ft.Kind() == reflect.Ptr {
@@ -44,14 +45,14 @@ func ReadSample(sample any) func(b *restful.RouteBuilder) {
 				b.Reads(fv)
 			}
 			if text, ok := in["path"]; ok {
-				param := restful.PathParameter(text, desc)
+				param := restful.PathParameter(text, desc).DefaultValue(defaultValue)
 				paramKeyFrom(param, field)
 				b.Param(param)
 			}
 			if text, ok := in["query"]; ok {
 				parts := strings.Split(text, ",")
 				for _, part := range parts {
-					param := restful.QueryParameter(part, desc)
+					param := restful.QueryParameter(part, desc).DefaultValue(defaultValue)
 					paramKeyFrom(param, field)
 					b.Param(param)
 				}
@@ -59,7 +60,7 @@ func ReadSample(sample any) func(b *restful.RouteBuilder) {
 			if text, ok := in["header"]; ok {
 				parts := strings.Split(text, ",")
 				for _, part := range parts {
-					param := restful.HeaderParameter(part, desc)
+					param := restful.HeaderParameter(part, desc).DefaultValue(defaultValue)
 					paramKeyFrom(param, field)
 					b.Param(param)
 				}

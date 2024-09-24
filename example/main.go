@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	rest "github.com/emicklei/go-restful/v3"
-	spec "github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/ggicci/httpin"
 
 	restspec "github.com/vine-io/go-restful-openapi"
@@ -195,30 +195,30 @@ func main() {
 
 func enrichOpenAPIObject(swo *restspec.OpenAPI) {
 
-	swo.Info = &spec.Info{
+	swo.Info = &openapi3.Info{
 		Title:       "UserService",
 		Description: "Resource for managing Users",
-		Contact: &spec.Contact{
+		Contact: &openapi3.Contact{
 			Name:  "john",
 			Email: "john@doe.rp",
 			URL:   "http://johndoe.org",
 		},
-		License: &spec.License{
+		License: &openapi3.License{
 			Name: "MIT",
 			URL:  "http://mit.org",
 		},
 		Version: "1.0.0",
 	}
-	swo.Tags = spec.Tags{
+	swo.Tags = openapi3.Tags{
 		{
 			Name:        "users",
 			Description: "Managing users",
 		},
 	}
 
-	swo.Components.SecuritySchemes = spec.SecuritySchemes{
-		"bearerAuth": &spec.SecuritySchemeRef{
-			Value: &spec.SecurityScheme{
+	swo.Components.SecuritySchemes = openapi3.SecuritySchemes{
+		"bearerAuth": &openapi3.SecuritySchemeRef{
+			Value: &openapi3.SecurityScheme{
 				Type:         "http",
 				Scheme:       "bearer",
 				BearerFormat: "JWT",

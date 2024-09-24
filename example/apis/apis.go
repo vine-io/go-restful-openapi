@@ -41,7 +41,7 @@ type UserPatch struct {
 }
 
 type UpdateUserInput struct {
-	ID      string    `in:"path=id"`
-	UID     string    `in:"query=uid"`
-	Payload UserPatch `in:"body=json"`
+	ID      string      `in:"path=id"`
+	UID     string      `in:"query=uid;default=hello"`
+	Payload []UserPatch `in:"body=json"`
 }
