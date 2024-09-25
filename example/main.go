@@ -45,8 +45,8 @@ type UserResource struct {
 
 func (u UserResource) WebService() *rest.WebService {
 	ws := new(rest.WebService)
-	ws.
-		Path("/users").
+
+	ws.Path("/users").
 		Consumes(rest.MIME_JSON, rest.MIME_XML).
 		Produces(rest.MIME_JSON, rest.MIME_XML) // you can specify this per route as well
 
@@ -72,19 +72,20 @@ func (u UserResource) WebService() *rest.WebService {
 		Metadata(restspec.KeySecurityJWT, "bearerAuth").
 		Writes(apis.User{}). // on the response
 		Returns(200, "OK", apis.User{}).
-		Returns(404, "Not Found", nil))
+		Returns(404, "Not Found", nil),
+	)
 
 	ws.Route(ws.PATCH("/{id}").
 		Filter(integration.HttpinFilter(apis.UpdateUserInput{})).
+		Consumes("multipart/form-data").
 		To(u.updateUser).
 		// docs
 		Doc("update a user").
-		//Param(ws.PathParameter("id", "identifier of the user").DataType("string")).
+		Notes("更新用户信息").
 		Metadata(restspec.KeyOpenAPITags, tags).
 		//Reads(apis.UserPatch{}),
 		Do(restspec.ReadSample(apis.UpdateUserInput{})),
 	)
-	//Reads(apis.UpdateUserInput{})) // from the request
 
 	ws.Route(ws.POST("").To(u.createUser).
 		// docs
@@ -124,17 +125,17 @@ func (u UserResource) findUser(request *rest.Request, response *rest.Response) {
 }
 
 // PUT http://localhost:8080/users/1
-func (u *UserResource) updateUser(request *rest.Request, response *rest.Response) {
-	input := request.Request.Context().Value(httpin.Input).(*apis.UpdateUserInput)
+func (u *UserResource) updateUser(req *rest.Request, rsp *rest.Response) {
+	input := req.Request.Context().Value(httpin.Input).(*apis.UpdateUserInput)
 	fmt.Printf("%#v\n", input)
 
 	usr := new(apis.User)
-	err := request.ReadEntity(&usr)
+	err := req.ReadEntity(&usr)
 	if err == nil {
 		u.users[usr.ID] = *usr
-		response.WriteEntity(usr)
+		rsp.WriteEntity(usr)
 	} else {
-		response.WriteError(http.StatusInternalServerError, err)
+		rsp.WriteError(http.StatusInternalServerError, err)
 	}
 }
 
@@ -188,9 +189,12 @@ func main() {
 	}
 	root.Filter(cors.Filter)
 
+	mux := http.NewServeMux()
+	mux.Handle("/", root)
+
 	log.Printf("Get the API using http://localhost:8081/apidocs.json")
 	log.Printf("Open Swagger UI using http://localhost:8081/apidocs/?url=http://localhost:8080/apidocs.json")
-	log.Fatal(http.ListenAndServe(":8081", root))
+	log.Fatal(http.ListenAndServe(":8081", mux))
 }
 
 func enrichOpenAPIObject(swo *restspec.OpenAPI) {

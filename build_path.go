@@ -23,6 +23,8 @@ const (
 
 	arrayType     = "array"
 	componentRoot = "#/components/schemas/"
+
+	MIME_FORMDATA = "multipart/form-data"
 )
 
 // SchemaType is used to wrap any raw types
@@ -104,6 +106,12 @@ func buildOperation(ws *restful.WebService, r restful.Route, patterns map[string
 	o.Description = r.Notes
 	o.Summary = stripTags(r.Doc)
 	o.Deprecated = r.Deprecated
+
+	if o.Extensions == nil {
+		o.Extensions = map[string]interface{}{}
+	}
+	extractExtensions(&o.Extensions, r.ExtensionProperties)
+
 	if r.Metadata != nil {
 		if tags, ok := r.Metadata[KeyOpenAPITags]; ok {
 			if tagList, ok := tags.([]string); ok {
@@ -119,10 +127,11 @@ func buildOperation(ws *restful.WebService, r restful.Route, patterns map[string
 		}
 	}
 
-	if o.Extensions == nil {
-		o.Extensions = map[string]interface{}{}
+	o.RequestBody = &spec.RequestBodyRef{
+		Value: &spec.RequestBody{
+			Content: map[string]*spec.MediaType{},
+		},
 	}
-	extractExtensions(&o.Extensions, r.ExtensionProperties)
 
 	// collect any path parameters
 	for _, param := range ws.PathParameters() {
@@ -141,11 +150,16 @@ func buildOperation(ws *restful.WebService, r restful.Route, patterns map[string
 				}
 			}
 
-			o.RequestBody = &spec.RequestBodyRef{
-				Value: &spec.RequestBody{
-					Content: content,
-				},
+			o.RequestBody.Value.Content = content
+		case "multipartFormData":
+			mt := o.RequestBody.Value.Content.Get(MIME_FORMDATA)
+			if mt == nil {
+				mt = &spec.MediaType{
+					Schema: &spec.SchemaRef{Value: spec.NewObjectSchema()},
+				}
 			}
+			mt.Schema.Value.Properties[p.Name] = p.Schema
+			o.RequestBody.Value.Content[MIME_FORMDATA] = mt
 		default:
 			o.AddParameter(&p)
 		}
@@ -202,53 +216,52 @@ func extractExtensions(extensible *map[string]interface{}, extensions restful.Ex
 }
 
 func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern string, cfg Config) spec.Parameter {
-	p := spec.Parameter{
-		Schema: &spec.SchemaRef{
-			Value: &spec.Schema{},
-		},
+	p := spec.Parameter{}
+	schema := &spec.SchemaRef{
+		Value: &spec.Schema{},
 	}
 	param := restfulParam.Data()
 	p.In = asParamType(param.Kind)
 
 	if param.AllowMultiple {
 		// If the param is an array apply the validations to the items in it
-		p.Schema.Value.Type = &spec.Types{arrayType}
-		p.Schema.Value.Items = &spec.SchemaRef{
+		schema.Value.Type = &spec.Types{arrayType}
+		schema.Value.Items = &spec.SchemaRef{
 			Value: &spec.Schema{
 				Type:    &spec.Types{param.DataType},
 				Pattern: param.Pattern,
 			},
 		}
 		if param.MaxLength != nil {
-			p.Schema.Value.Items.Value.MinLength = uint64(*param.MinLength)
+			schema.Value.Items.Value.MinLength = uint64(*param.MinLength)
 		}
-		p.Schema.Value.Format = param.CollectionFormat
+		schema.Value.Format = param.CollectionFormat
 		if param.MinItems != nil {
-			p.Schema.Value.MinItems = uint64(*param.MinItems)
+			schema.Value.MinItems = uint64(*param.MinItems)
 		}
 		if param.MaxItems != nil {
-			p.Schema.Value.MaxItems = spec.Uint64Ptr(uint64(*param.MaxItems))
+			schema.Value.MaxItems = spec.Uint64Ptr(uint64(*param.MaxItems))
 		}
-		p.Schema.Value.UniqueItems = param.UniqueItems
+		schema.Value.UniqueItems = param.UniqueItems
 	} else {
 		// Otherwise, for non-arrays, apply the validations directly to the param
-		p.Schema.Value.Type = &spec.Types{param.DataType}
+		schema.Value.Type = &spec.Types{param.DataType}
 		if param.MinLength != nil {
-			p.Schema.Value.MinLength = uint64(*param.MinLength)
+			schema.Value.MinLength = uint64(*param.MinLength)
 		}
 		if param.MaxLength != nil {
-			p.Schema.Value.MaxLength = spec.Uint64Ptr(uint64(*param.MaxLength))
+			schema.Value.MaxLength = spec.Uint64Ptr(uint64(*param.MaxLength))
 		}
-		p.Schema.Value.Min = param.Minimum
-		p.Schema.Value.Max = param.Maximum
+		schema.Value.Min = param.Minimum
+		schema.Value.Max = param.Maximum
 	}
 
 	// Prefer PossibleValues over deprecated AllowableValues
 	if numPossible := len(param.PossibleValues); numPossible > 0 {
 		// init Enum to our known size and populate it
-		p.Schema.Value.Enum = make([]interface{}, 0, numPossible)
+		schema.Value.Enum = make([]interface{}, 0, numPossible)
 		for _, value := range param.PossibleValues {
-			p.Schema.Value.Enum = append(p.Schema.Value.Enum, stringAutoType((*p.Schema.Value.Type)[0], value))
+			schema.Value.Enum = append(schema.Value.Enum, stringAutoType((*schema.Value.Type)[0], value))
 		}
 	} else {
 		if numAllowable := len(param.AllowableValues); numAllowable > 0 {
@@ -262,9 +275,9 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 			sort.Strings(allowableSortedKeys)
 
 			// init Enum to our known size and populate it
-			p.Schema.Value.Enum = make([]interface{}, 0, numAllowable)
+			schema.Value.Enum = make([]interface{}, 0, numAllowable)
 			for _, key := range allowableSortedKeys {
-				p.Schema.Value.Enum = append(p.Schema.Value.Enum, stringAutoType((*p.Schema.Value.Type)[0], key))
+				schema.Value.Enum = append(schema.Value.Enum, stringAutoType((*schema.Value.Type)[0], key))
 			}
 		}
 	}
@@ -275,52 +288,52 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 	p.AllowEmptyValue = param.AllowEmptyValue
 
 	if param.Kind == restful.PathParameterKind {
-		p.Schema.Value.Pattern = pattern
+		schema.Value.Pattern = pattern
 	} else if !param.AllowMultiple {
-		p.Schema.Value.Pattern = param.Pattern
+		schema.Value.Pattern = param.Pattern
 	}
 	st := reflect.TypeOf(r.ReadSample)
 	if param.Kind == restful.BodyParameterKind && r.ReadSample != nil && param.DataType == st.String() {
-		p.Schema = &spec.SchemaRef{Value: spec.NewSchema()}
+		schema = &spec.SchemaRef{Value: spec.NewSchema()}
 		if st.Kind() == reflect.Array || st.Kind() == reflect.Slice {
 			dataTypeName := keyFrom(st.Elem(), cfg)
-			p.Schema.Value.Type = &spec.Types{arrayType}
-			p.Schema.Value.Items = &spec.SchemaRef{
+			schema.Value.Type = &spec.Types{arrayType}
+			schema.Value.Items = &spec.SchemaRef{
 				Value: spec.NewArraySchema(),
 			}
 			isPrimitive := isPrimitiveType(dataTypeName)
 			if isPrimitive {
 				mapped := jsonSchemaType(dataTypeName)
-				p.Schema.Value.Items.Value.Type = &spec.Types{mapped}
+				schema.Value.Items.Value.Type = &spec.Types{mapped}
 			} else {
-				p.Schema.Value.Items.Ref = componentRoot + dataTypeName
+				schema.Value.Items.Ref = componentRoot + dataTypeName
 			}
 		} else if schemaType, ok := r.ReadSample.(SchemaType); ok {
-			p.Schema.Value.Type = &spec.Types{schemaType.RawType}
-			p.Schema.Value.Format = schemaType.Format
+			schema.Value.Type = &spec.Types{schemaType.RawType}
+			schema.Value.Format = schemaType.Format
 		} else {
 			dataTypeName := keyFrom(st, cfg)
-			p.Schema.Ref = componentRoot + dataTypeName
-			p.Schema.Value = spec.NewSchema()
+			schema.Ref = componentRoot + dataTypeName
+			schema.Value = spec.NewSchema()
 		}
-
 	} else {
 		if param.AllowMultiple {
-			p.Schema.Value.Type = &spec.Types{arrayType}
-			p.Schema.Value.Items = &spec.SchemaRef{Value: &spec.Schema{}}
-			p.Schema.Value.Items.Value.Type = &spec.Types{param.DataType}
-			p.Schema.Value.Items.Value.Format = param.CollectionFormat
+			schema.Value.Type = &spec.Types{arrayType}
+			schema.Value.Items = &spec.SchemaRef{Value: &spec.Schema{}}
+			schema.Value.Items.Value.Type = &spec.Types{param.DataType}
+			schema.Value.Items.Value.Format = param.CollectionFormat
 		} else {
-			p.Schema.Value.Type = &spec.Types{param.DataType}
+			schema.Value.Type = &spec.Types{param.DataType}
 		}
-		p.Schema.Value.Default = stringAutoType(param.DataType, param.DefaultValue)
-		p.Schema.Value.Format = param.DataFormat
+		schema.Value.Default = stringAutoType(param.DataType, param.DefaultValue)
+		schema.Value.Format = param.DataFormat
 	}
 
 	if p.Extensions == nil {
 		p.Extensions = map[string]interface{}{}
 	}
 	extractExtensions(&p.Extensions, param.ExtensionProperties)
+	p.Schema = schema
 
 	return p
 }
@@ -464,6 +477,34 @@ func jsonSchemaType(modelName string) string {
 		"bool":          "boolean",
 		"time.Time":     "string",
 		"time.Duration": "integer",
+	}
+	mapped, ok := schemaMap[modelName]
+	if !ok {
+		return modelName // use as is (custom or struct)
+	}
+	return mapped
+}
+
+func jsonSchemaFormat(modelName string) string {
+	schemaMap := map[string]string{
+		"uint":   "int32",
+		"uint8":  "int32",
+		"uint16": "int32",
+		"uint32": "int32",
+		"uint64": "int64",
+
+		"int":   "int32",
+		"int8":  "int32",
+		"int16": "int32",
+		"int32": "int32",
+		"int64": "int64",
+
+		"byte":          "byte",
+		"float64":       "double",
+		"float32":       "float",
+		"bool":          "boolean",
+		"time.Time":     "dateTime",
+		"time.Duration": "dateTime",
 	}
 	mapped, ok := schemaMap[modelName]
 	if !ok {
