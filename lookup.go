@@ -8,6 +8,8 @@ import (
 	"github.com/ggicci/httpin"
 )
 
+type File = httpin.File
+
 func asParamType(kind int) string {
 	switch {
 	case kind == restful.PathParameterKind:

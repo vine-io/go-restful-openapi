@@ -7,16 +7,11 @@ import (
 
 	rest "github.com/emicklei/go-restful/v3"
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/ggicci/httpin"
-
 	restspec "github.com/vine-io/go-restful-openapi"
-	"github.com/vine-io/go-restful-openapi/example/apis"
 	"github.com/vine-io/go-restful-openapi/integration"
-)
 
-func init() {
-	integration.UseHttpin("path", integration.Vars)
-}
+	"github.com/vine-io/go-restful-openapi/example/apis"
+)
 
 func bodyLogFilter(req *rest.Request, resp *rest.Response, chain *rest.FilterChain) {
 
@@ -55,12 +50,11 @@ func (u UserResource) WebService() *rest.WebService {
 	})
 	tags := []string{"users"}
 
-	ws.Route(ws.GET("/").To(u.findAllUsers).
+	ws.Route(ws.GET("/").Filter(integration.WithFilter(FindUserParams{})).To(u.findAllUsers).
 		// docs
 		Doc("get all users").
 		Metadata(restspec.KeyOpenAPITags, tags).
-		Param(ws.QueryParameter("gender", "identifier of the user").DataType("string")).
-		Param(ws.HeaderParameter("token", "user token").DataType("string")).
+		Do(restspec.ReadSample(FindUserParams{})).
 		Returns(200, "OK", []apis.User{}))
 
 	ws.Route(ws.GET("/{id}").To(u.findUser).
@@ -76,7 +70,7 @@ func (u UserResource) WebService() *rest.WebService {
 	)
 
 	ws.Route(ws.PATCH("/{id}").
-		Filter(integration.HttpinFilter(apis.UpdateUserInput{})).
+		Filter(integration.WithFilter(apis.UpdateUserInput{})).
 		Consumes("multipart/form-data").
 		To(u.updateUser).
 		// docs
@@ -103,14 +97,22 @@ func (u UserResource) WebService() *rest.WebService {
 	return ws
 }
 
+type FindUserParams struct {
+	Gender string `in:"query=gender" description:"identifier of the user"`
+	Token  string `in:"header=token" description:"user token"`
+}
+
 // GET http://localhost:8080/users
-func (u UserResource) findAllUsers(request *rest.Request, response *rest.Response) {
+func (u UserResource) findAllUsers(req *rest.Request, rsp *rest.Response) {
+
+	in := integration.GetRequestValue(req).(*FindUserParams)
+	fmt.Printf("%#v\n", in)
 
 	list := []apis.User{}
 	for _, each := range u.users {
 		list = append(list, each)
 	}
-	response.WriteEntity(list)
+	rsp.WriteEntity(list)
 }
 
 // GET http://localhost:8080/users/1
@@ -126,7 +128,7 @@ func (u UserResource) findUser(request *rest.Request, response *rest.Response) {
 
 // PUT http://localhost:8080/users/1
 func (u *UserResource) updateUser(req *rest.Request, rsp *rest.Response) {
-	input := req.Request.Context().Value(httpin.Input).(*apis.UpdateUserInput)
+	input := integration.GetRequestValue(req).(*apis.UpdateUserInput)
 	fmt.Printf("%#v\n", input)
 
 	usr := new(apis.User)

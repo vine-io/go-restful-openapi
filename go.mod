@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/emicklei/go-restful/v3 v3.12.1
-	github.com/getkin/kin-openapi v0.127.0
+	github.com/getkin/kin-openapi v0.128.0
 	github.com/ggicci/httpin v0.19.0
 )
 

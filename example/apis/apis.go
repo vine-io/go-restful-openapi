@@ -22,7 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package apis
 
 import (
-	"github.com/ggicci/httpin"
+	restspec "github.com/vine-io/go-restful-openapi"
 )
 
 // User is just a sample type
@@ -45,9 +45,9 @@ type UserPatch struct {
 }
 
 type UpdateUserInput struct {
-	ID        string         `in:"path=id"`
-	UID       string         `in:"query=uid;default=hello"`
-	Languages []int          `in:"form=languages;default=1,2;required"`
-	Cover     []*httpin.File `in:"form=cover"`
+	ID        string           `in:"path=id"`
+	UID       string           `in:"query=uid;default=hello"`
+	Languages []int            `in:"form=languages;default=1,2;required"`
+	Cover     []*restspec.File `in:"form=cover"`
 	//Payload []UserPatch  `in:"body=json"`
 }

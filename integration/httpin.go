@@ -10,8 +10,12 @@ import (
 	"github.com/ggicci/httpin/core"
 )
 
-// HttpinFilter converts to a FilterFunction.
-func HttpinFilter(input any, opts ...core.Option) rest.FilterFunction {
+func init() {
+	useHttpin("path", Vars)
+}
+
+// WithFilter converts to a FilterFunction.
+func WithFilter(input any, opts ...core.Option) rest.FilterFunction {
 	handler := httpin.NewInput(input, opts...)
 	return func(req *rest.Request, resp *rest.Response, chain *rest.FilterChain) {
 		req.Request = setURLVars(req.Request, req.PathParameters())
@@ -23,6 +27,11 @@ func HttpinFilter(input any, opts ...core.Option) rest.FilterFunction {
 
 		handler(next).ServeHTTP(resp.ResponseWriter, req.Request)
 	}
+}
+
+// GetRequestValue gets http.Input by restful.Request
+func GetRequestValue(req *rest.Request) any {
+	return req.Request.Context().Value(httpin.Input)
 }
 
 type contextKey int
@@ -54,17 +63,9 @@ func requestWithVars(r *http.Request, vars map[string]string) *http.Request {
 // MuxVarsFunc is integration.Vars
 type MuxVarsFunc func(*http.Request) map[string]string
 
-// UseHttpin registers a new directive executor which can extract values
-// from `integration.Vars`, i.e. path variables.
-//
-// Usage:
-//
-//	import integration "github.com/vine-io/go-restful-openapi/integration"
-//
-//	func init() {
-//	    integration.UseHttpin("path", integration.Vars)
-//	}
-func UseHttpin(name string, fnVars MuxVarsFunc) {
+// useHttpin registers a new directive executor which can extract values
+// from `Vars`, i.e. path variables.
+func useHttpin(name string, fnVars MuxVarsFunc) {
 	core.RegisterDirective(
 		name,
 		core.NewDirectivePath((&httpinVarsExtractor{Vars: fnVars}).Execute),

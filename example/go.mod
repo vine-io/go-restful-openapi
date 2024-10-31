@@ -6,7 +6,7 @@ replace github.com/vine-io/go-restful-openapi => ../
 
 require (
 	github.com/emicklei/go-restful/v3 v3.12.1
-	github.com/getkin/kin-openapi v0.127.0
+	github.com/getkin/kin-openapi v0.128.0
 	github.com/ggicci/httpin v0.19.0
 	github.com/vine-io/go-restful-openapi v0.0.0-00010101000000-000000000000
 )
