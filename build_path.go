@@ -232,8 +232,8 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 				Pattern: param.Pattern,
 			},
 		}
-		if param.MaxLength != nil {
-			schema.Value.Items.Value.MinLength = uint64(*param.MinLength)
+		if length := param.MinLength; length != nil {
+			schema.Value.Items.Value.MinLength = uint64(*length)
 		}
 		schema.Value.Format = param.CollectionFormat
 		if param.MinItems != nil {
@@ -246,11 +246,11 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 	} else {
 		// Otherwise, for non-arrays, apply the validations directly to the param
 		schema.Value.Type = &spec.Types{param.DataType}
-		if param.MinLength != nil {
-			schema.Value.MinLength = uint64(*param.MinLength)
+		if length := param.MinLength; length != nil {
+			schema.Value.MinLength = uint64(*length)
 		}
-		if param.MaxLength != nil {
-			schema.Value.MaxLength = spec.Uint64Ptr(uint64(*param.MaxLength))
+		if length := param.MaxLength; length != nil {
+			schema.Value.MaxLength = spec.Uint64Ptr(uint64(*length))
 		}
 		schema.Value.Min = param.Minimum
 		schema.Value.Max = param.Maximum
