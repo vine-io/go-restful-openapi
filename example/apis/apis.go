@@ -23,14 +23,13 @@ package apis
 
 import (
 	restspec "github.com/vine-io/go-restful-openapi"
+
+	"github.com/vine-io/go-restful-openapi/example/apis/internal"
 )
 
 // User is just a sample type
 type User struct {
-	// hello
-	ID   string `json:"id" description:"identifier of the user"`
-	Name string `json:"name" description:"name of the user" default:"john"`
-	Age  int    `json:"age" description:"age of the user" default:"21"`
+	internal.UserS
 }
 
 // Role is just a sample role type

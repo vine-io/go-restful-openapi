@@ -69,7 +69,7 @@ func (u UserResource) WebService() *rest.WebService {
 		Returns(404, "Not Found", nil),
 	)
 
-	ws.Route(ws.PATCH("/{id}").
+	ws.Route(ws.POST("/{id}").
 		Filter(integration.WithFilter(apis.UpdateUserInput{})).
 		Consumes("multipart/form-data").
 		To(u.updateUser).
@@ -143,7 +143,8 @@ func (u *UserResource) updateUser(req *rest.Request, rsp *rest.Response) {
 
 // PUT http://localhost:8080/users/1
 func (u *UserResource) createUser(request *rest.Request, response *rest.Response) {
-	usr := apis.User{ID: request.PathParameter("id")}
+	usr := apis.User{}
+	usr.ID = request.PathParameter("id")
 	err := request.ReadEntity(&usr)
 	if err == nil {
 		u.users[usr.ID] = usr

@@ -42,7 +42,9 @@ func BuildOpenAPIV3(config Config) *OpenAPI {
 			}
 			paths.Set(path, item)
 		}
-		components.Schemas = buildSchemas(each, config)
+		for name, schema := range buildSchemas(each, config) {
+			components.Schemas[name] = schema
+		}
 	}
 	openapi := &OpenAPI{
 		OpenAPI:    "3.0.1",
