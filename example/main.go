@@ -50,7 +50,9 @@ func (u UserResource) WebService() *rest.WebService {
 	})
 	tags := []string{"users"}
 
-	ws.Route(ws.GET("/").Filter(integration.WithFilter(FindUserParams{})).To(u.findAllUsers).
+	ws.Route(ws.GET("/").
+		Filter(integration.WithFilter(FindUserParams{})).
+		To(u.findAllUsers).
 		// docs
 		Doc("get all users").
 		Metadata(restspec.KeyOpenAPITags, tags).
